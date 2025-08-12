@@ -3,7 +3,7 @@ from logic import detect_mood, recommend_songs
 from googleapiclient.discovery import build
 
 # ---------------------- YOUTUBE API SETUP ---------------------- #
-API_KEY = "AIzaSyDiVcd3JGNinTm7UfRllFEFA1Gk7x5UCTU"
+API_KEY = API_KEY = st.secrets["API_KEY"]
 youtube = build("youtube", "v3", developerKey=API_KEY)
 
 def get_youtube_video_id(query):
