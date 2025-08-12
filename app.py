@@ -1,0 +1,174 @@
+import streamlit as st
+from logic import detect_mood, recommend_songs
+from googleapiclient.discovery import build
+
+# ---------------------- YOUTUBE API SETUP ---------------------- #
+API_KEY = "AIzaSyDiVcd3JGNinTm7UfRllFEFA1Gk7x5UCTU"
+youtube = build("youtube", "v3", developerKey=API_KEY)
+
+def get_youtube_video_id(query):
+    try:
+        request = youtube.search().list(
+            q=query,
+            part="snippet",
+            maxResults=5,  # Fetch more to filter
+            type="video",
+            videoEmbeddable="true",
+            videoDuration="medium"  # Avoid Shorts & very long videos
+        )
+        response = request.execute()
+
+        if "items" in response and len(response["items"]) > 0:
+            query_lower = query.lower()
+
+            # First pass: perfect matches only
+            for item in response["items"]:
+                title = item["snippet"]["title"].lower()
+                if "shorts" not in title and "#shorts" not in title:
+                    if all(word in title for word in query_lower.split()):
+                        return item["id"]["videoId"]
+
+            # Second pass: first non-shorts video
+            for item in response["items"]:
+                title = item["snippet"]["title"].lower()
+                if "shorts" not in title and "#shorts" not in title:
+                    return item["id"]["videoId"]
+
+    except Exception as e:
+        st.error(f"Error fetching YouTube video: {e}")
+    return None
+
+# ---------------------- Streamlit Page Config ---------------------- #
+st.set_page_config(page_title="Mood2Music 🎧", page_icon="🎶", layout="centered")
+
+# ---------------------- Video Background CSS + HTML ---------------------- #
+st.markdown(f"""
+    <style>
+    /* Full-screen video background */
+    .bgvid-wrap {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: -1;
+    }}
+    .bgvid-wrap video {{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }}
+    /* Dark overlay to keep text readable */
+    .bg-overlay {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 0;
+    }}
+    /* Keep your neon theme */
+    h1, h4 {{
+        color: white;
+        text-shadow: 0 0 6px #00f7ff, 0 0 12px #00f7ff, 0 0 24px #00f7ff;
+    }}
+    .song-card {{
+        background: rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin: 14px 0;
+        backdrop-filter: blur(6px);
+        border: 2px solid #00f7ff;
+        box-shadow: 0 0 10px #00f7ff, 0 0 20px #00f7ff, 0 0 30px #00f7ff;
+        position: relative;
+        z-index: 3;
+    }}
+    div.stButton > button {{
+        background-color: #00f7ff;
+        color: white;
+        font-weight: bold;
+        border-radius: 8px;
+        border: none;
+        padding: 10px 20px;
+        box-shadow: 0 0 5px #00f7ff, 0 0 15px #00f7ff;
+        transition: all 0.18s ease-in-out;
+    }}
+    div.stButton > button:hover {{
+        transform: scale(1.03);
+        box-shadow: 0 0 10px #00f7ff, 0 0 25px #00f7ff;
+    }}
+    .stTextInput>div>div>input {{
+        background: rgba(255,255,255,0.02);
+        color: white;
+    }}
+    .stMarkdown p, .stText, .stHeader {{
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    }}
+    </style>
+
+    <div class="bgvid-wrap">
+        <video autoplay muted loop playsinline>
+            <source src="https://raw.githubusercontent.com/Prabhu-21/mood2music-assets/main/cosmic_loop.mp4" type="video/mp4">
+        </video>
+    </div>
+    <div class="bg-overlay"></div>
+""", unsafe_allow_html=True)
+
+# ---------------------- Title ---------------------- #
+st.markdown("<h1 style='text-align: center;'>Mood2Music 🎶</h1>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center;'>Your AI Mood Detector & Song Recommender</h4>", unsafe_allow_html=True)
+
+# ---------------------- User Input ---------------------- #
+st.markdown("<h4 style='color: white;'>📝 Describe Your Current Mood</h4>", unsafe_allow_html=True)
+user_input = st.text_input("", placeholder="e.g., I feel heartbroken but motivated to hit the gym")
+
+# ---------------------- Recommendation Output ---------------------- #
+if st.button("🎧 Recommend Songs"):
+    if user_input.strip() == "":
+        st.warning("Please enter something first.")
+    else:
+        try:
+            detected_mood = detect_mood(user_input)
+        except Exception as e:
+            st.error(f"Error in mood detection: {e}")
+            raise
+
+        st.success(f"Detected Mood: {detected_mood}")
+
+        mood_label = detected_mood.split()[-1]
+
+        try:
+            recommendations = recommend_songs(mood_label)
+        except Exception as e:
+            st.error(f"Error while recommending songs: {e}")
+            raise
+
+        if recommendations is None or recommendations.empty:
+            st.info("No matching songs found for this mood. Try a different description.")
+        else:
+            st.markdown("**🎵 Top 5 Song Recommendations:**")
+            for i, row in enumerate(recommendations.itertuples(), 1):
+                song_name = row.name
+                artist = row.artists
+                query = f"{song_name} {artist}"
+
+                video_id = get_youtube_video_id(query)
+                if video_id:
+                    embed_url = f"https://www.youtube.com/embed/{video_id}"
+                    st.markdown(f"""
+                        <div class="song-card">
+                            <b>{i}. {song_name}</b> – {artist} <br><br>
+                            <iframe width="100%" height="200" src="{embed_url}" 
+                                frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen></iframe>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div class="song-card">
+                            <b>{i}. {song_name}</b> – {artist} <br>
+                            ❌ Preview not available
+                        </div>
+                    """, unsafe_allow_html=True)
