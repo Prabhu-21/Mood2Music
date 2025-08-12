@@ -110,7 +110,7 @@ st.markdown(f"""
 
     <div class="bgvid-wrap">
         <video autoplay muted loop playsinline>
-            <source src="https://raw.githubusercontent.com/Prabhu-21/mood2music-assets/main/cosmic_loop.mp4" type="video/mp4">
+            <source src="cosmic_loop.mp4" type="video/mp4">
         </video>
     </div>
     <div class="bg-overlay"></div>
