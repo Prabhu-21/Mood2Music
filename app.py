@@ -3,7 +3,7 @@ from logic import detect_mood, recommend_songs
 from googleapiclient.discovery import build
 
 # ---------------------- YOUTUBE API SETUP ---------------------- #
-API_KEY = API_KEY = st.secrets["API_KEY"]
+API_KEY = "AIzaSyDiVcd3JGNinTm7UfRllFEFA1Gk7x5UCTU"
 youtube = build("youtube", "v3", developerKey=API_KEY)
 
 def get_youtube_video_id(query):
@@ -41,40 +41,17 @@ def get_youtube_video_id(query):
 # ---------------------- Streamlit Page Config ---------------------- #
 st.set_page_config(page_title="Mood2Music 🎧", page_icon="🎶", layout="centered")
 
-# ---------------------- Video Background CSS + HTML ---------------------- #
-st.markdown(f"""
+# ---------------------- CSS Styling ---------------------- #
+st.markdown("""
     <style>
-    /* Full-screen video background */
-    .bgvid-wrap {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        z-index: -1;
-    }}
-    .bgvid-wrap video {{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }}
-    /* Dark overlay to keep text readable */
-    .bg-overlay {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 0;
-    }}
-    /* Keep your neon theme */
-    h1, h4 {{
+    body {
+        background-color: black;
+    }
+    h1, h4 {
         color: white;
         text-shadow: 0 0 6px #00f7ff, 0 0 12px #00f7ff, 0 0 24px #00f7ff;
-    }}
-    .song-card {{
+    }
+    .song-card {
         background: rgba(255,255,255,0.06);
         border-radius: 12px;
         padding: 12px 16px;
@@ -84,8 +61,8 @@ st.markdown(f"""
         box-shadow: 0 0 10px #00f7ff, 0 0 20px #00f7ff, 0 0 30px #00f7ff;
         position: relative;
         z-index: 3;
-    }}
-    div.stButton > button {{
+    }
+    div.stButton > button {
         background-color: #00f7ff;
         color: white;
         font-weight: bold;
@@ -94,26 +71,19 @@ st.markdown(f"""
         padding: 10px 20px;
         box-shadow: 0 0 5px #00f7ff, 0 0 15px #00f7ff;
         transition: all 0.18s ease-in-out;
-    }}
-    div.stButton > button:hover {{
+    }
+    div.stButton > button:hover {
         transform: scale(1.03);
         box-shadow: 0 0 10px #00f7ff, 0 0 25px #00f7ff;
-    }}
-    .stTextInput>div>div>input {{
+    }
+    .stTextInput>div>div>input {
         background: rgba(255,255,255,0.02);
         color: white;
-    }}
-    .stMarkdown p, .stText, .stHeader {{
+    }
+    .stMarkdown p, .stText, .stHeader {
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-    }}
+    }
     </style>
-
-    <div class="bgvid-wrap">
-        <video autoplay muted loop playsinline>
-            <source src="cosmic_loop.mp4" type="video/mp4">
-        </video>
-    </div>
-    <div class="bg-overlay"></div>
 """, unsafe_allow_html=True)
 
 # ---------------------- Title ---------------------- #
