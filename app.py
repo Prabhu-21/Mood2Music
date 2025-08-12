@@ -8,30 +8,43 @@ youtube = build("youtube", "v3", developerKey=API_KEY)
 
 def get_youtube_video_id(query):
     try:
+        avoid = ["cover", "live", "remix", "shorts", "#shorts"]
+        official_keywords = ["official", "lyrics", "lyrical"]
+        aesthetic_keywords = ["lofi", "slowed", "reverb"]
+
+        # Search YouTube
+        search_query = f"{query} official OR lyrics OR lyrical OR slowed OR reverb OR lofi"
         request = youtube.search().list(
-            q=query,
+            q=search_query,
             part="snippet",
-            maxResults=5,  # Fetch more to filter
+            maxResults=10,
             type="video",
-            videoEmbeddable="true",
-            videoDuration="medium"  # Avoid Shorts & very long videos
+            videoEmbeddable="true"
         )
         response = request.execute()
 
-        if "items" in response and len(response["items"]) > 0:
+        if "items" in response:
             query_lower = query.lower()
 
-            # First pass: perfect matches only
+            # Pass 1: Official match (artist in query + official/lyrics)
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
-                if "shorts" not in title and "#shorts" not in title:
-                    if all(word in title for word in query_lower.split()):
-                        return item["id"]["videoId"]
+                channel = item["snippet"]["channelTitle"].lower()
+                if (any(word in title for word in official_keywords) or channel in query_lower) \
+                        and not any(bad in title for bad in avoid):
+                    return item["id"]["videoId"]
 
-            # Second pass: first non-shorts video
+            # Pass 2: Aesthetic match (lofi, slowed, reverb, lyrical)
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
-                if "shorts" not in title and "#shorts" not in title:
+                if any(word in title for word in aesthetic_keywords) \
+                        and not any(bad in title for bad in avoid):
+                    return item["id"]["videoId"]
+
+            # Pass 3: Any clean, non-cover video
+            for item in response["items"]:
+                title = item["snippet"]["title"].lower()
+                if not any(bad in title for bad in avoid):
                     return item["id"]["videoId"]
 
     except Exception as e:
