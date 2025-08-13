@@ -4,67 +4,75 @@ from transformers import pipeline
 # ---------------------- Load Dataset ---------------------- #
 def load_songs():
     df = pd.read_csv("playlist.csv")
+    # Ensure numeric cols are numeric (in case CSV has strings)
+    for col in ["valence", "energy", "tempo", "danceability"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
 songs_df = load_songs()
 
-# ---------------------- Load LLM Sentiment Model ---------------------- #
+# ---------------------- Load LLM (zero-shot) ---------------------- #
 def load_model():
-    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+    # Zero-shot so we can classify directly into our mood set
+    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
 sentiment_model = load_model()
 
-# ---------------------- Mood Detection Logic ---------------------- #
-def detect_mood(text):
-    text = text.lower()
+# Candidate moods (expandable)
+CANDIDATE_MOODS = [
+    "Happy", "Sad", "Neutral", "Angry", "Romantic",
+    "Chill", "Gym", "Party", "Motivational",
+    "Melancholic", "Confident", "Peaceful",
+]
 
-    # Custom vibe-based mood detection (priority)
-    if any(word in text for word in ["angry", "rage", "furious", "mad"]):
-        return "😡 Angry"
-    elif any(word in text for word in ["love", "romantic", "miss", "crush", "broke up"]):
-        return "❤️ Romantic"
-    elif any(word in text for word in ["gym", "phonk", "beast", "workout", "training"]):
-        return "💪 Gym"
-    elif any(word in text for word in ["sleep", "lofi", "calm", "relax", "chill"]):
-        return "😴 Sleeping"
-    elif any(word in text for word in ["party", "dance", "club", "weekend", "dj"]):
-        return "🎉 Party"
-    elif any(word in text for word in ["demotivated", "lost", "empty", "hopeless", "low", "failure"]):
-        return "⚡ Motivational"
+EMOJI = {
+    "Happy": "😄", "Sad": "😢", "Neutral": "😐", "Angry": "😡",
+    "Romantic": "❤️", "Chill": "😌", "Gym": "💪", "Party": "🎉",
+    "Motivational": "⚡", "Melancholic": "🌧", "Confident": "😎",
+    "Peaceful": "🌅",
+}
 
-    # LLM-based sentiment detection
-    result = sentiment_model(text)[0]
-    label = result['label']
+# ---------------------- Mood Detection ---------------------- #
+def detect_mood(text: str) -> str:
+    result = sentiment_model(text, CANDIDATE_MOODS)
+    mood = result["labels"][0]  # top predicted label
+    return f"{EMOJI.get(mood, '')} {mood}"
 
-    if label == "POSITIVE":
-        return "😄 Happy"
-    elif label == "NEGATIVE":
-        return "😢 Sad"
-    else:
-        return "😐 Neutral"
+# ---------------------- Recommendations per Mood ---------------------- #
+def recommend_songs(mood: str):
+    # Helper for between to keep code tidy
+    def between(s, lo, hi):
+        return s.between(lo, hi, inclusive="both")
 
-# ---------------------- Song Recommendation Logic ---------------------- #
-def recommend_songs(mood):
+    df = songs_df.dropna(subset=["valence", "energy", "tempo", "danceability"])
+
     if "Happy" in mood:
-        filtered = songs_df[songs_df["valence"] > 0.7]
+        filtered = df[(df["valence"] > 0.75) & (df["energy"] > 0.60)]
     elif "Sad" in mood:
-        filtered = songs_df[songs_df["valence"] < 0.3]
+        filtered = df[(df["valence"] < 0.35) & (df["energy"] < 0.50)]
     elif "Neutral" in mood:
-        filtered = songs_df[(songs_df["valence"] >= 0.3) & (songs_df["valence"] <= 0.7)]
+        filtered = df[between(df["valence"], 0.40, 0.60) & between(df["energy"], 0.40, 0.60)]
     elif "Angry" in mood:
-        filtered = songs_df[(songs_df["energy"] > 0.8) & (songs_df["valence"] < 0.4)]
+        filtered = df[(df["energy"] > 0.85) & (df["valence"] < 0.40)]
     elif "Romantic" in mood:
-        filtered = songs_df[(songs_df["valence"] > 0.6) & (songs_df["danceability"] > 0.5)]
-    elif "Sleeping" in mood:
-        filtered = songs_df[(songs_df["energy"] < 0.4) & (songs_df["valence"] >= 0.3)]
+        filtered = df[(df["valence"] > 0.65) & (df["danceability"] > 0.55) & (df["energy"] < 0.70)]
+    elif "Chill" in mood:
+        filtered = df[(df["energy"] < 0.45) & (df["valence"] > 0.40) & between(df["tempo"], 60, 100)]
     elif "Gym" in mood:
-        filtered = songs_df[(songs_df["energy"] > 0.8) & (songs_df["tempo"] > 120)]
+        filtered = df[(df["energy"] > 0.85) & (df["tempo"] > 120)]
     elif "Party" in mood:
-        filtered = songs_df[(songs_df["danceability"] > 0.7) & (songs_df["energy"] > 0.7)]
+        filtered = df[(df["danceability"] > 0.75) & (df["energy"] > 0.75) & (df["tempo"] > 110)]
     elif "Motivational" in mood:
-        filtered = songs_df[(songs_df["valence"] > 0.6) & (songs_df["energy"] > 0.6)]
+        filtered = df[(df["valence"] > 0.65) & (df["energy"] > 0.65) & (df["tempo"] > 100)]
+    elif "Melancholic" in mood:
+        filtered = df[(df["valence"] < 0.45) & between(df["energy"], 0.30, 0.60) & between(df["tempo"], 60, 110)]
+    elif "Confident" in mood:
+        filtered = df[(df["energy"] > 0.70) & (df["valence"] > 0.50) & (df["danceability"] > 0.60) & (df["tempo"] > 100)]
+    elif "Peaceful" in mood:
+        filtered = df[(df["energy"] < 0.40) & between(df["valence"], 0.50, 0.80) & between(df["tempo"], 60, 90)]
     else:
-        filtered = songs_df
+        filtered = df
 
     recommended = filtered.sample(n=5) if len(filtered) >= 5 else filtered
     return recommended[["name", "artists"]]
