@@ -8,11 +8,10 @@ youtube = build("youtube", "v3", developerKey=API_KEY)
 
 def get_youtube_video_id(query):
     try:
-        avoid = ["cover", "live", "remix", "shorts", "#shorts"]
+        avoid = ["cover", "live", "shorts", "#shorts"]  # allow slowed/reverb
         official_keywords = ["official", "lyrics", "lyrical"]
         aesthetic_keywords = ["lofi", "slowed", "reverb"]
 
-        # Search YouTube
         search_query = f"{query} official OR lyrics OR lyrical OR slowed OR reverb OR lofi"
         request = youtube.search().list(
             q=search_query,
@@ -26,7 +25,7 @@ def get_youtube_video_id(query):
         if "items" in response:
             query_lower = query.lower()
 
-            # Pass 1: Official match (artist in query + official/lyrics)
+            # Pass 1: Official match
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
                 channel = item["snippet"]["channelTitle"].lower()
@@ -34,14 +33,14 @@ def get_youtube_video_id(query):
                         and not any(bad in title for bad in avoid):
                     return item["id"]["videoId"]
 
-            # Pass 2: Aesthetic match (lofi, slowed, reverb, lyrical)
+            # Pass 2: Aesthetic match
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
                 if any(word in title for word in aesthetic_keywords) \
                         and not any(bad in title for bad in avoid):
                     return item["id"]["videoId"]
 
-            # Pass 3: Any clean, non-cover video
+            # Pass 3: Any clean video
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
                 if not any(bad in title for bad in avoid):
@@ -57,13 +56,8 @@ st.set_page_config(page_title="Mood2Music 🎧", page_icon="🎶", layout="cente
 # ---------------------- CSS Styling ---------------------- #
 st.markdown("""
     <style>
-    body {
-        background-color: black;
-    }
-    h1, h4 {
-        color: white;
-        text-shadow: 0 0 6px #00f7ff, 0 0 12px #00f7ff, 0 0 24px #00f7ff;
-    }
+    body { background-color: black; }
+    h1, h4 { color: white; text-shadow: 0 0 6px #00f7ff, 0 0 12px #00f7ff, 0 0 24px #00f7ff; }
     .song-card {
         background: rgba(255,255,255,0.06);
         border-radius: 12px;
@@ -89,13 +83,8 @@ st.markdown("""
         transform: scale(1.03);
         box-shadow: 0 0 10px #00f7ff, 0 0 25px #00f7ff;
     }
-    .stTextInput>div>div>input {
-        background: rgba(255,255,255,0.02);
-        color: white;
-    }
-    .stMarkdown p, .stText, .stHeader {
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-    }
+    .stTextInput>div>div>input { background: rgba(255,255,255,0.02); color: white; }
+    .stMarkdown p, .stText, .stHeader { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -105,7 +94,7 @@ st.markdown("<h4 style='text-align: center;'>Your AI Mood Detector & Song Recomm
 
 # ---------------------- User Input ---------------------- #
 st.markdown("<h4 style='color: white;'>📝 Describe Your Current Mood</h4>", unsafe_allow_html=True)
-user_input = st.text_input("", placeholder="e.g., I feel heartbroken but motivated to hit the gym")
+user_input = st.text_input("", placeholder="e.g., I am ready to hit Gym today")
 
 # ---------------------- Recommendation Output ---------------------- #
 if st.button("🎧 Recommend Songs"):
@@ -120,7 +109,8 @@ if st.button("🎧 Recommend Songs"):
 
         st.success(f"Detected Mood: {detected_mood}")
 
-        mood_label = detected_mood.split()[-1]
+        # Extract mood without emoji
+        mood_label = detected_mood.split(" ", 1)[1] if " " in detected_mood else detected_mood
 
         try:
             recommendations = recommend_songs(mood_label)
