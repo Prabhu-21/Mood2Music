@@ -1,10 +1,9 @@
 import pandas as pd
 from transformers import pipeline
 
-# ---------------------- Load Dataset ---------------------- #
+# Load Dataset
 def load_songs():
     df = pd.read_csv("playlist.csv")
-    # Ensure numeric cols are numeric (in case CSV has strings)
     for col in ["valence", "energy", "tempo", "danceability"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -12,14 +11,13 @@ def load_songs():
 
 songs_df = load_songs()
 
-# ---------------------- Load LLM (zero-shot) ---------------------- #
+# Load LLM (zero-shot)
 def load_model():
-    # Zero-shot so we can classify directly into our mood set
     return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
 sentiment_model = load_model()
 
-# Candidate moods (expandable)
+# Candidate moods
 CANDIDATE_MOODS = [
     "Happy", "Sad", "Neutral", "Angry", "Romantic",
     "Chill", "Gym", "Party", "Motivational",
@@ -33,15 +31,14 @@ EMOJI = {
     "Peaceful": "🌅",
 }
 
-# ---------------------- Mood Detection ---------------------- #
+# Mood Detection
 def detect_mood(text: str) -> str:
     result = sentiment_model(text, CANDIDATE_MOODS)
     mood = result["labels"][0]  # top predicted label
     return f"{EMOJI.get(mood, '')} {mood}"
 
-# ---------------------- Recommendations per Mood ---------------------- #
+#  Recommendations per Mood 
 def recommend_songs(mood: str):
-    # Helper for between to keep code tidy
     def between(s, lo, hi):
         return s.between(lo, hi, inclusive="both")
 
