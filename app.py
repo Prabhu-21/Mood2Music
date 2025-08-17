@@ -2,13 +2,13 @@ import streamlit as st
 from logic import detect_mood, recommend_songs
 from googleapiclient.discovery import build
 
-# ---------------------- YOUTUBE API SETUP ---------------------- #
+# YOUTUBE API SETUP
 API_KEY = API_KEY = st.secrets["API_KEY"]
 youtube = build("youtube", "v3", developerKey=API_KEY)
 
 def get_youtube_video_id(query):
     try:
-        avoid = ["cover", "live", "shorts", "#shorts"]  # allow slowed/reverb
+        avoid = ["cover", "live", "shorts", "#shorts"] 
         official_keywords = ["official", "lyrics", "lyrical"]
         aesthetic_keywords = ["lofi", "slowed", "reverb"]
 
@@ -25,7 +25,7 @@ def get_youtube_video_id(query):
         if "items" in response:
             query_lower = query.lower()
 
-            # Pass 1: Official match
+            #Official match
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
                 channel = item["snippet"]["channelTitle"].lower()
@@ -33,14 +33,14 @@ def get_youtube_video_id(query):
                         and not any(bad in title for bad in avoid):
                     return item["id"]["videoId"]
 
-            # Pass 2: Aesthetic match
+            #Aesthetic match
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
                 if any(word in title for word in aesthetic_keywords) \
                         and not any(bad in title for bad in avoid):
                     return item["id"]["videoId"]
 
-            # Pass 3: Any clean video
+            #Any clean video
             for item in response["items"]:
                 title = item["snippet"]["title"].lower()
                 if not any(bad in title for bad in avoid):
@@ -50,10 +50,10 @@ def get_youtube_video_id(query):
         st.error(f"Error fetching YouTube video: {e}")
     return None
 
-# ---------------------- Streamlit Page Config ---------------------- #
+# Streamlit Page Config
 st.set_page_config(page_title="Mood2Music 🎧", page_icon="🎶", layout="centered")
 
-# ---------------------- CSS Styling ---------------------- #
+#CSS Styling 
 st.markdown("""
     <style>
     body { background-color: black; }
@@ -88,15 +88,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ---------------------- Title ---------------------- #
+#Title 
 st.markdown("<h1 style='text-align: center;'>Mood2Music 🎶</h1>", unsafe_allow_html=True)
 st.markdown("<h4 style='text-align: center;'>Your AI Mood Detector & Song Recommender</h4>", unsafe_allow_html=True)
 
-# ---------------------- User Input ---------------------- #
+#User Input
 st.markdown("<h4 style='color: white;'>📝 Describe Your Current Mood</h4>", unsafe_allow_html=True)
 user_input = st.text_input("", placeholder="e.g., I am ready to hit Gym today")
 
-# ---------------------- Recommendation Output ---------------------- #
+# Recommendation Output
 if st.button("🎧 Recommend Songs"):
     if user_input.strip() == "":
         st.warning("Please enter something first.")
